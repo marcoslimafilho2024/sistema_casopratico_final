@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, request, jsonify
 import os
 import pandas as pd
 from docx import Document
+from src.models.user import db
+from src.models.participante import Participante
 
 consultas_bp = Blueprint('consultas', __name__)
 
@@ -61,38 +63,45 @@ def consultar_aliquotas_zero():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@consultas_bp.route('/consultas/cst-pis-cofins', methods=['GET'])
-def consultar_cst():
-    try:
-        cst_opcoes = [
-            {'codigo': '01', 'descricao': 'Operação Tributável com Alíquota Básica'},
-            {'codigo': '02', 'descricao': 'Operação Tributável com Alíquota Diferenciada'},
-            {'codigo': '03', 'descricao': 'Operação Tributável com Alíquota por Unidade de Medida de Produto'},
-            {'codigo': '04', 'descricao': 'Operação Tributável Monofásica - Revenda a Alíquota Zero'},
-            {'codigo': '05', 'descricao': 'Operação Tributável por Substituição Tributária'},
-            {'codigo': '06', 'descricao': 'Operação Tributável a Alíquota Zero'},
-            {'codigo': '07', 'descricao': 'Operação Isenta da Contribuição'},
-            {'codigo': '08', 'descricao': 'Operação sem Incidência da Contribuição'},
-            {'codigo': '09', 'descricao': 'Operação com Suspensão da Contribuição'},
-            {'codigo': '49', 'descricao': 'Outras Operações de Saída'},
-            {'codigo': '50', 'descricao': 'Operação com Direito a Crédito - Vinculada Exclusivamente a Receita Tributada no Mercado Interno'},
-            {'codigo': '51', 'descricao': 'Operação com Direito a Crédito – Vinculada Exclusivamente a Receita Não Tributada no Mercado Interno'},
-            {'codigo': '70', 'descricao': 'Operação de Aquisição sem Direito a Crédito'},
-            {'codigo': '71', 'descricao': 'Operação de Aquisição com Isenção'},
-            {'codigo': '72', 'descricao': 'Operação de Aquisição com Suspensão'},
-            {'codigo': '73', 'descricao': 'Operação de Aquisição a Alíquota Zero'},
-            {'codigo': '74', 'descricao': 'Operação de Aquisição sem Incidência da Contribuição'},
-            {'codigo': '98', 'descricao': 'Outras Operações de Entrada'},
-            {'codigo': '99', 'descricao': 'Outras Operações'}
-        ]
-        
-        return jsonify({
-            'message': 'Códigos de Situação Tributária para PIS/PASEP e COFINS',
-            'cst_opcoes': cst_opcoes
-        }), 200
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+@consultas_bp.route('/csts', methods=['GET'])
+def listar_csts():
+    """Lista os CSTs disponíveis para PIS/COFINS"""
+    csts = [
+        {"codigo": "01", "descricao": "Operação Tributável (base de cálculo = valor da operação (alíquota normal (cumulativo/não cumulativo)))"},
+        {"codigo": "02", "descricao": "Operação Tributável (base de cálculo = valor da operação (alíquota diferenciada))"},
+        {"codigo": "03", "descricao": "Operação Tributável (base de cálculo = quantidade vendida por alíquota por unidade de produto)"},
+        {"codigo": "04", "descricao": "Tributação monofásica (alíquota zero)"},
+        {"codigo": "05", "descricao": "Operação Tributável (ST)"},
+        {"codigo": "06", "descricao": "Operação Tributável (alíquota zero)"},
+        {"codigo": "07", "descricao": "Operação Isenta da Contribuição"},
+        {"codigo": "08", "descricao": "Operação Sem Incidência da Contribuição"},
+        {"codigo": "09", "descricao": "Operação com Suspensão da Contribuição"},
+        {"codigo": "49", "descricao": "Outras Operações de Saída"},
+        {"codigo": "50", "descricao": "Operação com Direito a Crédito - Vinculada Exclusivamente a Receita Tributada no Mercado Interno"},
+        {"codigo": "51", "descricao": "Operação com Direito a Crédito - Vinculada Exclusivamente a Receita Não Tributada no Mercado Interno"},
+        {"codigo": "52", "descricao": "Operação com Direito a Crédito - Vinculada Exclusivamente a Receita de Exportação"},
+        {"codigo": "53", "descricao": "Operação com Direito a Crédito - Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno"},
+        {"codigo": "54", "descricao": "Operação com Direito a Crédito - Vinculada a Receitas Tributadas no Mercado Interno e de Exportação"},
+        {"codigo": "55", "descricao": "Operação com Direito a Crédito - Vinculada a Receitas Não-Tributadas no Mercado Interno e de Exportação"},
+        {"codigo": "56", "descricao": "Operação com Direito a Crédito - Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação"},
+        {"codigo": "60", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada Exclusivamente a Receita Tributada no Mercado Interno"},
+        {"codigo": "61", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada Exclusivamente a Receita Não-Tributada no Mercado Interno"},
+        {"codigo": "62", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada Exclusivamente a Receita de Exportação"},
+        {"codigo": "63", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno"},
+        {"codigo": "64", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada a Receitas Tributadas no Mercado Interno e de Exportação"},
+        {"codigo": "65", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada a Receitas Não-Tributadas no Mercado Interno e de Exportação"},
+        {"codigo": "66", "descricao": "Crédito Presumido - Operação de Aquisição Vinculada a Receitas Tributadas e Não-Tributadas no Mercado Interno e de Exportação"},
+        {"codigo": "67", "descricao": "Crédito Presumido - Outras Operações"},
+        {"codigo": "70", "descricao": "Operação de Aquisição sem Direito a Crédito"},
+        {"codigo": "71", "descricao": "Operação de Aquisição com Isenção"},
+        {"codigo": "72", "descricao": "Operação de Aquisição com Suspensão"},
+        {"codigo": "73", "descricao": "Operação de Aquisição a Alíquota Zero"},
+        {"codigo": "74", "descricao": "Operação de Aquisição sem Incidência da Contribuição"},
+        {"codigo": "75", "descricao": "Operação de Aquisição por ST"},
+        {"codigo": "98", "descricao": "Outras Operações de Entrada"},
+        {"codigo": "99", "descricao": "Outras Operações"}
+    ]
+    return jsonify(csts), 200
 
 @consultas_bp.route('/consultas/reforma-tributaria', methods=['GET'])
 def consultar_reforma_tributaria():
