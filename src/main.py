@@ -19,8 +19,13 @@ from src.config import get_config
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 
 # Configuração baseada no ambiente
-config = get_config()
-app.config.from_object(config)
+# No Render, forçar ambiente de produção
+if os.environ.get('RENDER'):
+    app.config['FLASK_ENV'] = 'production'
+    app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:////tmp/app.db"
+else:
+    config = get_config()
+    app.config.from_object(config)
 
 # Habilitar CORS para todas as rotas
 CORS(app)
