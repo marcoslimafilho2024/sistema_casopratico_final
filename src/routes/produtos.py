@@ -17,7 +17,7 @@ def criar_produto():
     try:
         data = request.get_json()
         
-        required_fields = ['ncm', 'cst_pis', 'cst_cofins', 'valor_venda']
+        required_fields = ['ncm', 'cst', 'valor_venda', 'tributado']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'{field} é obrigatório'}), 400
@@ -31,16 +31,22 @@ def criar_produto():
         if len(data['ncm']) != 8 or not data['ncm'].isdigit():
             return jsonify({'error': 'NCM deve conter exatamente 8 dígitos'}), 400
         
-        # Calcular PIS e COFINS (simplificado - alíquotas padrão)
+        # Calcular PIS e COFINS apenas se tributado
         valor_venda = float(data['valor_venda'])
-        pis_debito = valor_venda * 0.0165  # 1,65%
-        cofins_debito = valor_venda * 0.076  # 7,6%
+        tributado = data['tributado']
+        
+        if tributado:
+            pis_debito = valor_venda * 0.0165  # 1,65%
+            cofins_debito = valor_venda * 0.076  # 7,6%
+        else:
+            pis_debito = 0
+            cofins_debito = 0
         
         produto = Produto(
             ncm=data['ncm'],
-            cst_pis=data['cst_pis'],
-            cst_cofins=data['cst_cofins'],
+            cst=data['cst'],
             valor_venda=valor_venda,
+            tributado=tributado,
             pis_debito=pis_debito,
             cofins_debito=cofins_debito
         )
@@ -61,20 +67,31 @@ def atualizar_produto(id):
         
         if 'valor_venda' in data:
             produto.valor_venda = float(data['valor_venda'])
-            # Recalcular PIS e COFINS
-            produto.pis_debito = produto.valor_venda * 0.0165
-            produto.cofins_debito = produto.valor_venda * 0.076
+            # Recalcular PIS e COFINS se tributado
+            if produto.tributado:
+                produto.pis_debito = produto.valor_venda * 0.0165
+                produto.cofins_debito = produto.valor_venda * 0.076
+            else:
+                produto.pis_debito = 0
+                produto.cofins_debito = 0
         
         if 'ncm' in data:
             if len(data['ncm']) != 8 or not data['ncm'].isdigit():
                 return jsonify({'error': 'NCM deve conter exatamente 8 dígitos'}), 400
             produto.ncm = data['ncm']
         
-        if 'cst_pis' in data:
-            produto.cst_pis = data['cst_pis']
+        if 'cst' in data:
+            produto.cst = data['cst']
         
-        if 'cst_cofins' in data:
-            produto.cst_cofins = data['cst_cofins']
+        if 'tributado' in data:
+            produto.tributado = data['tributado']
+            # Recalcular PIS e COFINS baseado no novo status de tributação
+            if produto.tributado:
+                produto.pis_debito = produto.valor_venda * 0.0165
+                produto.cofins_debito = produto.valor_venda * 0.076
+            else:
+                produto.pis_debito = 0
+                produto.cofins_debito = 0
         
         db.session.commit()
         return jsonify(produto.to_dict()), 200
