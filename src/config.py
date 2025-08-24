@@ -13,8 +13,8 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Configuração para produção"""
     DEBUG = False
-    # Para produção, você pode usar PostgreSQL ou manter SQLite
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or "sqlite:///src/database/app.db"
+    # Para produção, usar caminho absoluto que funcione no Render
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or "sqlite:////tmp/app.db"
 
 # Configuração baseada no ambiente
 config = {
