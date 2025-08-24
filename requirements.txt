@@ -9,3 +9,4 @@ openpyxl
 python-docx
 lxml
 pydantic
+pydantic_core==2.33.2
